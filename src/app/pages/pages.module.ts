@@ -24,7 +24,7 @@ import { PagesRoutingModule } from "./pages-routing.module";
 import { SharedModule } from "../shared/shared.module";
 import { WidgetModule } from '../shared/widget/widget.module';
 import { DashboardComponent } from './dashboards/dashboard/dashboard.component';
-import { ToastsContainer } from './dashboards/dashboard/toasts-container.component';
+import { ToastsContainer } from './dashboards/camera/toasts-container.component';
 import { CameraComponent } from './dashboards/camera/camera.component';
 import {WebcamModule} from 'ngx-webcam';
 
@@ -50,6 +50,7 @@ import {WebcamModule} from 'ngx-webcam';
     WidgetModule,
     NgxUsefulSwiperModule,
     LightboxModule,
+    
   ],
 })
 export class PagesModule {

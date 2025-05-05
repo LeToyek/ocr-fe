@@ -1,39 +1,35 @@
 import { Injectable } from '@angular/core';
-import { Router, CanActivate, ActivatedRouteSnapshot, RouterStateSnapshot } from '@angular/router';
+import { CanActivate, ActivatedRouteSnapshot, RouterStateSnapshot, Router } from '@angular/router';
+import { Observable } from 'rxjs';
 
-// Auth Services
-import { AuthenticationService } from '../services/auth.service';
-import { AuthfakeauthenticationService } from '../services/authfake.service';
-import { environment } from '../../../environments/environment';
+// Import your authentication service if you have one, otherwise check localStorage directly
+// import { AuthenticationService } from '../services/auth.service'; // Example
 
-@Injectable({ providedIn: 'root' })
+@Injectable({
+  providedIn: 'root'
+})
 export class AuthGuard implements CanActivate {
-    constructor(
-        private router: Router,
-        private authenticationService: AuthenticationService,
-        private authFackservice: AuthfakeauthenticationService
-    ) { }
 
-    canActivate(route: ActivatedRouteSnapshot, state: RouterStateSnapshot) {
-        if (environment.defaultauth === 'firebase') {
-            const currentUser = this.authenticationService.currentUser();
-            if (currentUser) {
-                // logged in so return true
-                return true;
-            }
-        } else {
-            const currentUser = this.authFackservice.currentUserValue;
-            if (currentUser) {
-                // logged in so return true
-                return true;
-            }
-            // check if user data is in storage is logged in via API.
-            if(localStorage.getItem('currentUser')) {
-                return true;
-            }
-        }
-        // not logged in so redirect to login page with the return url
-        this.router.navigate(['/auth/login'], { queryParams: { returnUrl: state.url } });
-        return false;
+  constructor(
+    private router: Router
+    // private authenticationService: AuthenticationService // Inject if using a service
+  ) {}
+
+  canActivate(
+    route: ActivatedRouteSnapshot,
+    state: RouterStateSnapshot): Observable<boolean> | Promise<boolean> | boolean {
+
+    // Check if the token exists in localStorage (or use your auth service)
+    const token = localStorage.getItem('token'); // Adjust key if needed
+    console.log("token is " + token )
+
+    if (token) {
+      // Logged in, so return true
+      return true;
     }
+
+    // Not logged in, redirect to login page with the return url
+    this.router.navigate(['/auth/login'], { queryParams: { returnUrl: state.url } });
+    return false;
+  }
 }

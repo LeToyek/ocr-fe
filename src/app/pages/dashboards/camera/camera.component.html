@@ -4,56 +4,215 @@
 
 <div class="row">
     <div class="col">
-
         <div class="h-100">
-
-            <div style="text-align:center">
-                <h1>
-                  Ngx-Webcam Demo
-                </h1>
-              
-                <div>
-                  <webcam [height]="500" [width]="500" [trigger]="triggerObservable" (imageCapture)="handleImage($event)" *ngIf="showWebcam"
-                          [allowCameraSwitch]="allowCameraSwitch" [switchCamera]="nextWebcamObservable"
-                          [videoOptions]="videoOptions"
-                          [imageQuality]="1"
-                          (cameraSwitched)="cameraWasSwitched($event)"
-                          (initError)="handleInitError($event)"
-                  ></webcam>
-                  <br/>
-                  <button class="actionBtn" (click)="triggerSnapshot();">Take A Snapshot</button>
-                  <button class="actionBtn" (click)="toggleWebcam();">Toggle Webcam</button>
-                  <br/>
-                  <button class="actionBtn" (click)="showNextWebcam(true);" [disabled]="!multipleWebcamsAvailable">Next Webcam</button>
-                  <input id="cameraSwitchCheckbox" type="checkbox" [(ngModel)]="allowCameraSwitch"><label for="cameraSwitchCheckbox">Allow Camera Switch</label>
-                  <br/>
-                  DeviceId: <input id="deviceId" type="text" [(ngModel)]="deviceId" style="width: 500px">
-                  <button (click)="showNextWebcam(deviceId);">Activate</button>
+            <div class="camera-container text-center">
+                <div class="card shadow-lg border-0 rounded-lg mb-4">
+                    <div class="card-header bg-gradient-primary text-white">
+                        <h4 class="mb-0">Document Scanner</h4>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="position-relative">
+                            <webcam [height]="320" [width]="320" [trigger]="triggerObservable" (imageCapture)="handleImage($event)" *ngIf="showWebcam"
+                                    [allowCameraSwitch]="allowCameraSwitch" [switchCamera]="nextWebcamObservable"
+                                    [videoOptions]="videoOptions"
+                                    [imageQuality]="1"
+                                    mirrorImage="never"
+                                    (cameraSwitched)="cameraWasSwitched($event)"
+                                    (initError)="handleInitError($event)"
+                                    class="rounded-0"
+                            ></webcam>
+                            
+                            <!-- OCR Guide Overlay -->
+                            <div *ngIf="showWebcam" class="ocr-guide-overlay" style="position: absolute; top: 0; left: 0; height: 100%; width: 100%; z-index: 2;">
+                                <!-- Document frame -->
+                                <div class="document-frame" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); 
+                                    height: 120px; width: 260px; border: 2px dashed rgba(255,255,255,0.7); z-index: 3; border-radius: 8px;">
+                                    <!-- Corner markers for better alignment -->
+                                    <div class="corner top-left" style="position: absolute; top: -5px; left: -5px; width: 15px; height: 15px; border-top: 3px solid #4dabf7; border-left: 3px solid #4dabf7;"></div>
+                                    <div class="corner top-right" style="position: absolute; top: -5px; right: -5px; width: 15px; height: 15px; border-top: 3px solid #4dabf7; border-right: 3px solid #4dabf7;"></div>
+                                    <div class="corner bottom-left" style="position: absolute; bottom: -5px; left: -5px; width: 15px; height: 15px; border-bottom: 3px solid #4dabf7; border-left: 3px solid #4dabf7;"></div>
+                                    <div class="corner bottom-right" style="position: absolute; bottom: -5px; right: -5px; width: 15px; height: 15px; border-bottom: 3px solid #4dabf7; border-right: 3px solid #4dabf7;"></div>
+                                </div>
+                                <!-- Helper text -->
+                                <div style="position: absolute; bottom: 10px; left: 0; width: 100%; text-align: center; color: white; text-shadow: 1px 1px 2px rgba(0,0,0,0.8); font-size: 14px;">
+                                    <!-- Align document within the frame -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-footer bg-light p-3">
+                        <div class="camera-controls">
+                            <div class="d-flex justify-content-center gap-2 mb-3">
+                                <button class="btn btn-primary btn-lg px-4 py-2 shadow-sm" (click)="triggerSnapshot();">
+                                    <i class="mdi mdi-camera me-1"></i> Capture
+                                </button>
+                                <button class="btn btn-info btn-lg px-4 py-2 shadow-sm text-white" (click)="toggleWebcam();">
+                                    <i class="mdi mdi-camera-switch me-1"></i> Toggle Camera
+                                </button>
+                                <!-- Removed Switch Camera button -->
+                                <!-- <button class="btn btn-secondary btn-lg px-4 py-2 shadow-sm" (click)="showNextWebcam(true);" [disabled]="!multipleWebcamsAvailable">
+                                    <i class="mdi mdi-camera-front-variant me-1"></i> Switch Camera
+                                </button> -->
+                            </div>
+                            
+                            <!-- Removed camera settings section -->
+                            <!-- <div class="camera-settings mb-3" *ngIf="allowCameraSwitch">
+                                <div class="form-check form-switch d-inline-block me-3">
+                                    <input class="form-check-input" id="cameraSwitchCheckbox" type="checkbox" [(ngModel)]="allowCameraSwitch">
+                                    <label class="form-check-label" for="cameraSwitchCheckbox">Allow Camera Switch</label>
+                                </div>
+                                
+                                <div class="input-group" style="max-width: 500px; margin: 0 auto;">
+                                    <input id="deviceId" type="text" class="form-control" [(ngModel)]="deviceId" placeholder="Device ID">
+                                    <button class="btn btn-outline-primary" type="button" (click)="showNextWebcam(deviceId);">
+                                        <i class="mdi mdi-check-circle-outline me-1"></i> Activate
+                                    </button>
+                                </div>
+                            </div> -->
+                        </div>
+                    </div>
                 </div>
               </div>
               
-              <div class="snapshot" *ngIf="webcamImage">
-                <h2>Nice one!</h2>
-                <img [src]="webcamImage.imageAsDataUrl"/>
-              </div>
-              
-              <h4 *ngIf="errors.length > 0">Messages:</h4>
-              <ul *ngFor="let error of errors">
-                <li>{{error | json}}</li>
-              </ul>
-              
-              <h2>Like this project on GitHub:</h2>
-              <ul class="links">
-                <li>
-                  <h2><a target="_blank" rel="noopener" href="https://github.com/basst314/ngx-webcam">Ngx-Webcam / GitHub</a></h2>
-                </li>
-              </ul>
-              
+              <div class="snapshot mt-4" *ngIf="webcamImage || uploadedImage"> <!-- Show if either image exists -->
+                <div class="card shadow-lg border-0 rounded-lg">
+                    <div class="card-header bg-gradient-success text-white">
+                        <h4 class="mb-0">Captured/Uploaded Image</h4> <!-- Updated title -->
+                    </div>
+                    <div class="card-body text-center position-relative"> <!-- Added position-relative for spinner -->
+                        <!-- Loading Spinner Overlay -->
+                        <div *ngIf="loading" class="position-absolute top-0 start-0 w-100 h-100 d-flex justify-content-center align-items-center bg-light bg-opacity-75" style="z-index: 10;">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                        </div>
+                        <!-- Display webcam or uploaded image -->
+                        <img [src]="webcamImage ? webcamImage.imageAsDataUrl : uploadedImage" class="img-fluid border rounded shadow-sm" style="max-height: 400px;"/>
+                    </div>
+                    <div class="card-footer bg-light p-3">
+                        <div class="d-flex justify-content-center gap-3">
+                            <!-- Disable buttons when loading -->
+                            <button class="btn btn-success btn-lg px-4 py-2 shadow-sm" (click)="processWithOCR()" [disabled]="loading">
+                                <span *ngIf="!loading"><i class="mdi mdi-text-recognition me-1"></i> Process</span>
+                                <span *ngIf="loading">
+                                    <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                                    Processing...
+                                </span>
+                            </button>
+                            <button class="btn btn-outline-danger btn-lg px-4 py-2 shadow-sm" (click)="retakePhoto()" [disabled]="loading">
+                                <i class="mdi mdi-camera-retake me-1"></i> Retake
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            <!-- Added OCR Result Display Section -->
+            <div class="ocr-results mt-4" *ngIf="ocrResult && !loading"> <!-- Keep the !loading check -->
+                <div class="card ribbon-box border shadow-none mb-lg-0">
+                    
+                    <div class="card-body">
+                        <div class="ribbon ribbon-shape" [ngClass]="{
+                            'ribbon-success': ocrResult.status === 'success', 
+                            'ribbon-danger': ocrResult.status === 'error'
+                        }">{{ocrResult.status |titlecase}}</div>
+                        <h5 class="fs-14 text-end mb-3">OCR Scan Result</h5>
+                        <p *ngIf="ocrResult.message" class="text-muted text-end fst-italic mb-3">
+                            {{ ocrResult.message }}
+                        </p>
+                        <dl class="row mb-0 mt-2">
+                            <dt class="col-sm-4 fw-medium">Formatted Top:</dt>
+                            <dd class="col-sm-8">{{ ocrResult.formatted_top }}</dd>
 
+                            <dt class="col-sm-4 fw-medium">Formatted Bottom:</dt>
+                            <dd class="col-sm-8">{{ ocrResult.formatted_bottom }}</dd>
+
+                            <dt class="col-sm-4 fw-medium">Category:</dt>
+                            <dd class="col-sm-8">
+                                <span class="badge bg-primary fs-12">{{ ocrResult.category }}</span>
+                            </dd>
+                        </dl>
+                    </div>
+                    <!-- Added Card Footer -->
+                    <div class="card-footer bg-light p-3 text-center">
+                        <button class="btn btn-success btn-lg px-4 py-2 shadow-sm" (click)="verifyResult()"> <!-- Added (click) handler placeholder -->
+                            <i class="mdi mdi-check-circle-outline me-1"></i> Verify
+                        </button>
+                    </div>
+                    <!-- End Card Footer -->
+                </div>
+            </div>
+            <!-- End OCR Result Display Section -->
+
+            <!-- Available Lots Table Section -->
+            <div class="available-lots mt-4">
+                <div class="card shadow-lg border-0 rounded-lg">
+                    <div class="card-header bg-gradient-secondary text-white"> <!-- Changed header color -->
+                        <h4 class="mb-0">Available Lot Numbers</h4>
+                    </div>
+                    <div class="card-body position-relative">
+                        <!-- Loading Spinner for Table -->
+                        <div *ngIf="loadingLots" class="position-absolute top-0 start-0 w-100 h-100 d-flex justify-content-center align-items-center bg-light bg-opacity-75" style="z-index: 10;">
+                            <div class="spinner-border text-secondary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                        </div>
+
+                        <!-- Error Message for Table -->
+                        <div *ngIf="lotsError && !loadingLots" class="alert alert-danger text-center">
+                            {{ lotsError }}
+                        </div>
+
+                        <!-- Table Display -->
+                        <div *ngIf="!loadingLots && !lotsError" class="table-responsive">
+                            <table class="table table-hover table-striped align-middle mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th scope="col">Category</th>
+                                        <th scope="col">Top Text</th>
+                                        <th scope="col">Bottom Text</th>
+                                        <th scope="col">Verified</th>
+                                        <th scope="col">Document No.</th>
+                                        <th scope="col">Issued Date</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr *ngFor="let lot of availableLots">
+                                        <td>
+                                            <span class="badge bg-primary">{{ lot.category | uppercase }}</span>
+                                        </td>
+                                        <td>{{ lot.top_text }}</td>
+                                        <td>{{ lot.bottom_text }}</td>
+                                        <td>
+                                            <span class="badge rounded-pill" [ngClass]="lot.is_verified ? 'badge-soft-success' : 'badge-soft-danger'">
+                                                {{ lot.is_verified ? 'Yes' : 'No' }}
+                                            </span>
+                                        </td>
+                                        <td>{{ lot.document_number }}</td>
+                                        <td>{{ lot.issued_date | date:'yyyy-MM-dd' }}</td> <!-- Optional: Format date -->
+                                    </tr>
+                                    <!-- Handle empty table case -->
+                                    <tr *ngIf="availableLots.length === 0">
+                                        <td colspan="6" class="text-center text-muted py-3">
+                                            No available lot numbers found.
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <!-- Optional Footer for Refresh Button -->
+                    <div class="card-footer bg-light p-3 text-center" *ngIf="!loadingLots">
+                         <button class="btn btn-sm btn-outline-secondary" (click)="fetchAvailableLots()" [disabled]="loadingLots">
+                            <i class="mdi mdi-refresh me-1"></i> Refresh List
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <!-- End Available Lots Table Section -->
+
+
+            
         </div> <!-- end .h-100-->
-
     </div> <!-- end col -->
-
 </div>
 
 <app-toasts aria-live="polite" aria-atomic="true"></app-toasts>

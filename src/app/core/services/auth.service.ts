@@ -5,6 +5,7 @@ import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { BehaviorSubject, Observable } from 'rxjs';
 
 import { GlobalComponent } from "../../global-component";
+import {environment} from "../../../environments/environment"
 
 const AUTH_API = GlobalComponent.AUTH_API;
 
@@ -47,38 +48,43 @@ export class AuthenticationService {
     }
 
     /**
-     * Performs the auth
-     * @param email email of user
+     * Performs the auth login using NIK and password
+     * @param nik NIK of user
      * @param password password of user
      */
-    login(email: string, password: string) {
-        // return getFirebaseBackend()!.loginUser(email, password).then((response: any) => {
-        //     const user = response;
-        //     return user;
-        // });
+    login(nik: string, password: string): Observable<any> { // Changed parameter name and added return type
+        // Define the specific login URL
+        const loginUrl = environment.baseApi + '/auth/login'; // Use http:// if not HTTPS
 
-        return this.http.post(AUTH_API + 'signin', {
-            email,
-            password
-          }, httpOptions);
+        // Define the request body with the required field names
+        const body = {
+            lg_nik: nik,
+            lg_password: password
+        };
+
+        // Make the POST request
+        return this.http.post<any>(loginUrl, body, httpOptions); // Specify expected response type if known
     }
 
     /**
      * Returns the current user
      */
     public currentUser(): any {
-        return getFirebaseBackend()!.getAuthenticatedUser();
+        // This likely needs updating if you are not using Firebase anymore
+        // Consider returning the value from localStorage or the BehaviorSubject
+        // return getFirebaseBackend()!.getAuthenticatedUser();
+        return this.currentUserSubject.value; // Example: return from BehaviorSubject
     }
 
     /**
      * Logout the user
      */
     logout() {
-        // logout the user
-        // return getFirebaseBackend()!.logout();
+        // Clear local storage and update BehaviorSubject
         localStorage.removeItem('currentUser');
         localStorage.removeItem('token');
         this.currentUserSubject.next(null!);
+        // Optional: Add API call to invalidate token on the server if needed
     }
 
     /**

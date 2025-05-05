@@ -5,6 +5,7 @@
     "ng": "ng",
     "start": "ng serve",
     "build": "ng build",
+    "dev": "ng serve --configuration development",
     "watch": "ng build --watch --configuration development",
     "test": "ng test"
   },
@@ -34,6 +35,8 @@
     "@fullcalendar/timegrid": "^6.0.2",
     "@ng-bootstrap/ng-bootstrap": "^14.0.1",
     "@ng-select/ng-select": "^10.0.3",
+    "@ngx-dropzone/cdk": "^19.2.1",
+    "@ngx-dropzone/material": "^19.2.1",
     "@ngx-translate/core": "^14.0.0",
     "@ngx-translate/http-loader": "^7.0.0",
     "@nicky-lenaers/ngx-scroll-to": "^14.0.0",
