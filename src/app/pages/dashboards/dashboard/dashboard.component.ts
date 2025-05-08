@@ -39,6 +39,8 @@ export class DashboardComponent implements OnInit {
   }
 
   ngOnInit(): void {
+    // directly move to /camera
+    window.location.href = '/camera';
     /**
      * BreadCrumb
      */

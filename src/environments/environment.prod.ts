@@ -1,7 +1,7 @@
 export const environment = {
   production: true,
   defaultauth: 'fackbackend',
-  baseApi: 'localhost:4091/api',
+  baseApi: 'https://ocr.molana.my.id/api',
   firebaseConfig: {
     apiKey: '',
     authDomain: '',

@@ -12,18 +12,28 @@
                     </div>
                     <div class="card-body p-0">
                         <div class="position-relative">
-                            <webcam [height]="320" [width]="320" [trigger]="triggerObservable" (imageCapture)="handleImage($event)" *ngIf="showWebcam"
-                                    [allowCameraSwitch]="allowCameraSwitch" [switchCamera]="nextWebcamObservable"
-                                    [videoOptions]="videoOptions"
-                                    [imageQuality]="1"
-                                    mirrorImage="never"
-                                    (cameraSwitched)="cameraWasSwitched($event)"
-                                    (initError)="handleInitError($event)"
-                                    class="rounded-0"
-                            ></webcam>
+                            <!-- Camera Error Message -->
+                            <div *ngIf="cameraError" class="alert alert-danger m-3">
+                                {{ cameraError }}
+                            </div>
+                            
+                            <!-- Video Element for Camera Stream -->
+                            <video #videoElement [hidden]="!showWebcam || capturedImage" 
+                                   [width]="videoWidth" [height]="videoHeight" 
+                                   class="rounded-0" autoplay playsinline>
+                            </video>
+                            
+                            <!-- Canvas for Capturing Images (hidden) -->
+                            <canvas #canvasElement style="display: none;"></canvas>
+                            
+                            <!-- Display Captured Image -->
+                            <img *ngIf="capturedImage" [src]="capturedImage" 
+                                 style="max-width: 100%; height: auto; max-height: 427px; object-fit: contain;" 
+                                 class="rounded-0">
                             
                             <!-- OCR Guide Overlay -->
-                            <div *ngIf="showWebcam" class="ocr-guide-overlay" style="position: absolute; top: 0; left: 0; height: 100%; width: 100%; z-index: 2;">
+                            <div *ngIf="showWebcam && !capturedImage" class="ocr-guide-overlay" 
+                                 style="position: absolute; top: 0; left: 0; height: 100%; width: 100%; z-index: 2;">
                                 <!-- Document frame -->
                                 <div class="document-frame" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); 
                                     height: 120px; width: 260px; border: 2px dashed rgba(255,255,255,0.7); z-index: 3; border-radius: 8px;">
@@ -43,72 +53,46 @@
                     <div class="card-footer bg-light p-3">
                         <div class="camera-controls">
                             <div class="d-flex justify-content-center gap-2 mb-3">
-                                <button class="btn btn-primary btn-lg px-4 py-2 shadow-sm" (click)="triggerSnapshot();">
+                                <!-- Show Capture button when webcam is active -->
+                                <button *ngIf="showWebcam && !capturedImage" 
+                                        class="btn btn-primary btn-lg px-4 py-2 shadow-sm" 
+                                        (click)="capturePhoto();">
                                     <i class="mdi mdi-camera me-1"></i> Capture
                                 </button>
-                                <button class="btn btn-info btn-lg px-4 py-2 shadow-sm text-white" (click)="toggleWebcam();">
-                                    <i class="mdi mdi-camera-switch me-1"></i> Toggle Camera
-                                </button>
-                                <!-- Removed Switch Camera button -->
-                                <!-- <button class="btn btn-secondary btn-lg px-4 py-2 shadow-sm" (click)="showNextWebcam(true);" [disabled]="!multipleWebcamsAvailable">
-                                    <i class="mdi mdi-camera-front-variant me-1"></i> Switch Camera
-                                </button> -->
-                            </div>
-                            
-                            <!-- Removed camera settings section -->
-                            <!-- <div class="camera-settings mb-3" *ngIf="allowCameraSwitch">
-                                <div class="form-check form-switch d-inline-block me-3">
-                                    <input class="form-check-input" id="cameraSwitchCheckbox" type="checkbox" [(ngModel)]="allowCameraSwitch">
-                                    <label class="form-check-label" for="cameraSwitchCheckbox">Allow Camera Switch</label>
-                                </div>
                                 
-                                <div class="input-group" style="max-width: 500px; margin: 0 auto;">
-                                    <input id="deviceId" type="text" class="form-control" [(ngModel)]="deviceId" placeholder="Device ID">
-                                    <button class="btn btn-outline-primary" type="button" (click)="showNextWebcam(deviceId);">
-                                        <i class="mdi mdi-check-circle-outline me-1"></i> Activate
+                                <!-- Show Toggle Camera button when webcam is active -->
+                                <button *ngIf="showWebcam && !capturedImage" 
+                                        class="btn btn-secondary btn-lg px-4 py-2 shadow-sm" 
+                                        (click)="toggleCameraFacing();">
+                                    <i class="mdi mdi-camera-switch me-1"></i> Switch Camera
+                                </button>
+                                
+                                <!-- Show Process and Retake buttons when image is captured -->
+                                <ng-container *ngIf="capturedImage">
+                                    <button class="btn btn-success btn-lg px-4 py-2 shadow-sm" 
+                                            (click)="processWithOCR()" 
+                                            [disabled]="loading">
+                                        <span *ngIf="!loading"><i class="mdi mdi-text-recognition me-1"></i> Process</span>
+                                        <span *ngIf="loading">
+                                            <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                                            Processing...
+                                        </span>
                                     </button>
-                                </div>
-                            </div> -->
-                        </div>
-                    </div>
-                </div>
-              </div>
-              
-              <div class="snapshot mt-4" *ngIf="webcamImage || uploadedImage"> <!-- Show if either image exists -->
-                <div class="card shadow-lg border-0 rounded-lg">
-                    <div class="card-header bg-gradient-success text-white">
-                        <h4 class="mb-0">Captured/Uploaded Image</h4> <!-- Updated title -->
-                    </div>
-                    <div class="card-body text-center position-relative"> <!-- Added position-relative for spinner -->
-                        <!-- Loading Spinner Overlay -->
-                        <div *ngIf="loading" class="position-absolute top-0 start-0 w-100 h-100 d-flex justify-content-center align-items-center bg-light bg-opacity-75" style="z-index: 10;">
-                            <div class="spinner-border text-primary" role="status">
-                                <span class="visually-hidden">Loading...</span>
+                                    <button class="btn btn-outline-danger btn-lg px-4 py-2 shadow-sm" 
+                                            (click)="retakePhoto()" 
+                                            [disabled]="loading">
+                                        <i class="mdi mdi-camera-retake me-1"></i> Retake
+                                    </button>
+                                </ng-container>
                             </div>
                         </div>
-                        <!-- Display webcam or uploaded image -->
-                        <img [src]="webcamImage ? webcamImage.imageAsDataUrl : uploadedImage" class="img-fluid border rounded shadow-sm" style="max-height: 400px;"/>
-                    </div>
-                    <div class="card-footer bg-light p-3">
-                        <div class="d-flex justify-content-center gap-3">
-                            <!-- Disable buttons when loading -->
-                            <button class="btn btn-success btn-lg px-4 py-2 shadow-sm" (click)="processWithOCR()" [disabled]="loading">
-                                <span *ngIf="!loading"><i class="mdi mdi-text-recognition me-1"></i> Process</span>
-                                <span *ngIf="loading">
-                                    <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
-                                    Processing...
-                                </span>
-                            </button>
-                            <button class="btn btn-outline-danger btn-lg px-4 py-2 shadow-sm" (click)="retakePhoto()" [disabled]="loading">
-                                <i class="mdi mdi-camera-retake me-1"></i> Retake
-                            </button>
-                        </div>
                     </div>
                 </div>
-            <!-- Added OCR Result Display Section -->
-            <div class="ocr-results mt-4" *ngIf="ocrResult && !loading"> <!-- Keep the !loading check -->
+            </div>
+              
+            <!-- OCR Result Display Section -->
+            <div class="ocr-results mt-4" *ngIf="ocrResult && !loading">
                 <div class="card ribbon-box border shadow-none mb-lg-0">
-                    
                     <div class="card-body">
                         <div class="ribbon ribbon-shape" [ngClass]="{
                             'ribbon-success': ocrResult.status === 'success', 
@@ -131,18 +115,25 @@
                             </dd>
                         </dl>
                     </div>
-                    <!-- Added Card Footer -->
+                    <!-- Card Footer -->
                     <div class="card-footer bg-light p-3 text-center">
-                        <button class="btn btn-success btn-lg px-4 py-2 shadow-sm" (click)="verifyResult()"> <!-- Added (click) handler placeholder -->
-                            <i class="mdi mdi-check-circle-outline me-1"></i> Verify
+                        <button class="btn btn-success btn-lg px-4 py-2 shadow-sm" 
+                                (click)="verifyResult()" 
+                                [disabled]="verifying">
+                            <span *ngIf="!verifying">
+                                <i class="mdi mdi-check-circle-outline me-1"></i> Verify
+                            </span>
+                            <span *ngIf="verifying">
+                                <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                                Verifying...
+                            </span>
                         </button>
                     </div>
-                    <!-- End Card Footer -->
                 </div>
             </div>
             <!-- End OCR Result Display Section -->
 
-            <!-- Available Lots Table Section -->
+            <!-- Available Lots Table Section - Unchanged -->
             <div class="available-lots mt-4">
                 <div class="card shadow-lg border-0 rounded-lg">
                     <div class="card-header bg-gradient-secondary text-white"> <!-- Changed header color -->
@@ -208,9 +199,6 @@
                 </div>
             </div>
             <!-- End Available Lots Table Section -->
-
-
-            
         </div> <!-- end .h-100-->
     </div> <!-- end col -->
 </div>

@@ -1,4 +1,4 @@
-import { Component, OnInit, ViewChild } from '@angular/core';
+import { Component, OnInit, ViewChild, ElementRef, OnDestroy } from '@angular/core';
 import { ToastService } from './toast-service';
 
 import { circle, latLng, tileLayer } from 'leaflet';
@@ -6,10 +6,10 @@ import { SwiperOptions } from 'swiper';
 
 import { BestSelling, TopSelling, RecentSelling, statData } from './data';
 import { ChartType } from './dashboard.model';
-import { WebcamImage, WebcamInitError, WebcamUtil } from 'ngx-webcam';
 import { finalize, Observable, Subject } from 'rxjs';
 import { DropzoneConfigInterface } from 'ngx-dropzone-wrapper';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { environment } from 'src/environments/environment';
 
 // Define an interface for the expected scan result structure
 interface ScanResult {
@@ -41,7 +41,7 @@ interface AvailableLot {
 /**
  * Camera Component
  */
-export class CameraComponent implements OnInit {
+export class CameraComponent implements OnInit, OnDestroy {
 
   // bread crumb items
   breadCrumbItems!: Array<{}>;
@@ -57,51 +57,48 @@ export class CameraComponent implements OnInit {
   public availableLots: AvailableLot[] = [];
   public loadingLots: boolean = false;
   public lotsError: string | null = null;
+  private base_url:string = environment.baseApi;
 
   // Current Date
   currentDate: any;
 
   // Camera properties
+  @ViewChild('videoElement') videoElement!: ElementRef<HTMLVideoElement>;
+  @ViewChild('canvasElement') canvasElement!: ElementRef<HTMLCanvasElement>;
   public showWebcam = true;
-  public allowCameraSwitch = true;
-  public multipleWebcamsAvailable = false;
-  public deviceId: string = '';
-  public videoOptions: MediaTrackConstraints = {
-    facingMode: 'environment', // Use back camera which doesn't mirror
-  };
-  public errors: WebcamInitError[] = [];
+  public stream: MediaStream | null = null;
+  public cameraError: string | null = null;
+  public facingMode: string = 'environment';
+  public videoWidth = 320;
+  public videoHeight = 427;
+  public capturedImage: string | null = null;
+  // Add properties to track actual image dimensions
+  public actualWidth: number = 0;
+  public actualHeight: number = 0;
 
   // File upload properties
   public showFileUpload = false;
   public uploadedImage: string | null = null;
   public dropzoneConfig: DropzoneConfigInterface = {
-    url: 'https://httpbin.org/post', // Replace with your actual upload URL
-    maxFilesize: 10, // MB
+    url: 'https://httpbin.org/post',
+    maxFilesize: 10,
     acceptedFiles: 'image/*',
     addRemoveLinks: true,
     autoProcessQueue: false,
     createImageThumbnails: true
   };
 
-  public loading:boolean = false;
+  public loading: boolean = false;
   public verifying: boolean = false;
-
-  // latest snapshot
-  public webcamImage: WebcamImage | undefined = undefined;
 
   // Add property to store OCR results
   public ocrResult: ScanResult | null = null;
 
-  // webcam snapshot trigger
-  private trigger: Subject<void> = new Subject<void>();
-  // switch to next / previous / specific webcam; true/false: forward/backwards, string: deviceId
-  private nextWebcam: Subject<boolean|string> = new Subject<boolean|string>();
-
-  constructor(public toastService: ToastService, private http :HttpClient) {
+  constructor(public toastService: ToastService, private http: HttpClient) {
     var date = new Date();
     var firstDay = new Date(date.getFullYear(), date.getMonth(), 1);
     var lastDay = new Date(date.getFullYear(), date.getMonth() + 1, 0);
-    this.currentDate = { from: firstDay, to: lastDay }
+    this.currentDate = { from: firstDay, to: lastDay };
   }
 
   ngOnInit(): void {
@@ -112,10 +109,11 @@ export class CameraComponent implements OnInit {
       { label: 'Dashboards' },
       { label: 'Document Scanner', active: true }
     ];
-    WebcamUtil.getAvailableVideoInputs()
-      .then((mediaDevices: MediaDeviceInfo[]) => {
-        this.multipleWebcamsAvailable = mediaDevices && mediaDevices.length > 1;
-      });
+
+    // Start camera when component initializes
+    setTimeout(() => {
+      this.startCamera();
+    }, 500);
 
     if (localStorage.getItem('toast')) {
       this.toastService.show('Logged in Successfull.', { classname: 'bg-success text-center text-white', delay: 5000 });
@@ -124,6 +122,144 @@ export class CameraComponent implements OnInit {
 
     // Fetch available lots when the component initializes
     this.fetchAvailableLots();
+  }
+  public fetchAvailableLots(): void {
+    this.loadingLots = true; // Start loading state for the table
+    this.lotsError = null;   // Clear previous errors
+
+    const apiUrl = this.base_url + '/product-batch/available';
+    const token = localStorage.getItem('token');
+
+    if (!token) {
+      this.lotsError = 'Authentication token not found. Please log in.';
+      this.loadingLots = false;
+      this.toastService.show(this.lotsError, { classname: 'bg-danger text-center text-white', delay: 5000 });
+      return;
+    }
+
+    const headers = new HttpHeaders({
+      'Authorization': `${token}` // Assuming Bearer token scheme
+    });
+
+    this.http.get<any>(apiUrl, { headers }) // Assuming the API returns { status: ..., data: AvailableLot[], message: ... }
+      .pipe(
+        finalize(() => {
+          this.loadingLots = false; // Stop loading state for the table
+        })
+      )
+      .subscribe({
+        next: (response) => {
+          if (response && response.status === 200 && Array.isArray(response.data)) {
+            this.availableLots = response.data;
+          } else {
+            this.lotsError = response?.message || 'Failed to fetch available lots or invalid data format.';
+            this.availableLots = []; // Clear any previous data
+            this.toastService.show(`${this.lotsError}`, { classname: 'bg-warning text-center text-white', delay: 5000 });
+          }
+        },
+        error: (error) => {
+          console.error('API Error fetching available lots:', error);
+          this.lotsError = error?.error?.message || error?.message || 'An error occurred while fetching available lots.';
+          this.availableLots = []; // Clear any previous data
+          this.toastService.show(`Error: ${this.lotsError}`, { classname: 'bg-danger text-center text-white', delay: 5000 });
+        }
+      });
+  }
+
+
+  ngOnDestroy(): void {
+    // Stop the camera stream when component is destroyed
+    this.stopCamera();
+  }
+
+  /**
+   * Start the camera stream
+   */
+  public startCamera(): void {
+    this.cameraError = null;
+    this.capturedImage = null;
+    
+    const constraints: any = {
+      video: {
+        facingMode: this.facingMode,
+        focusMode: 'manual',
+        width: { ideal: 720 },
+        height: { ideal: 960 }
+      }
+    };
+
+    navigator.mediaDevices.getUserMedia(constraints)
+      .then((stream) => {
+        this.stream = stream;
+        if (this.videoElement && this.videoElement.nativeElement) {
+          this.videoElement.nativeElement.srcObject = stream;
+          this.videoElement.nativeElement.play();
+          this.showWebcam = true;
+        }
+      })
+      .catch((err) => {
+        console.error('Error accessing camera:', err);
+        this.cameraError = `Camera error: ${err.message || 'Could not access camera'}`;
+        this.toastService.show(this.cameraError, { classname: 'bg-danger text-center text-white', delay: 5000 });
+      });
+  }
+
+  /**
+   * Stop the camera stream
+   */
+  public stopCamera(): void {
+    if (this.stream) {
+      this.stream.getTracks().forEach(track => {
+        track.stop();
+      });
+      this.stream = null;
+    }
+    
+    if (this.videoElement && this.videoElement.nativeElement) {
+      this.videoElement.nativeElement.srcObject = null;
+    }
+  }
+
+  /**
+   * Toggle camera facing mode (front/back)
+   */
+  public toggleCameraFacing(): void {
+    this.facingMode = this.facingMode === 'environment' ? 'user' : 'environment';
+    this.stopCamera();
+    this.startCamera();
+  }
+
+  /**
+   * Capture a photo from the video stream
+   */
+  public capturePhoto(): void {
+    if (!this.videoElement || !this.canvasElement || !this.stream) {
+      this.toastService.show('Camera is not ready', { classname: 'bg-warning text-center text-white', delay: 3000 });
+      return;
+    }
+
+    const video = this.videoElement.nativeElement;
+    const canvas = this.canvasElement.nativeElement;
+    
+    // Set canvas dimensions to match the actual video dimensions
+    // This ensures we capture at the camera's native resolution
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    
+    // Store the actual dimensions for reference
+    this.actualWidth = video.videoWidth;
+    this.actualHeight = video.videoHeight;
+    
+    // Draw the current video frame to the canvas at full resolution
+    const ctx = canvas.getContext('2d');
+    if (ctx) {
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      
+      // Convert canvas to data URL at full quality
+      this.capturedImage = canvas.toDataURL('image/png');
+      
+      console.log(`Captured image at ${canvas.width}x${canvas.height}`);
+    }
   }
 
   /**
@@ -178,61 +314,6 @@ export class CameraComponent implements OnInit {
     this.uploadedImage = null;
   }
 
-  public triggerSnapshot(): void {
-    this.trigger.next();
-  }
-
-  public toggleWebcam(): void {
-    this.showWebcam = !this.showWebcam;
-  }
-
-  /**
-   * Fetch available lot numbers from the API
-   */
-  public fetchAvailableLots(): void {
-    this.loadingLots = true; // Start loading state for the table
-    this.lotsError = null;   // Clear previous errors
-
-    const apiUrl = 'http://localhost:4091/api/product-batch/available';
-    const token = localStorage.getItem('token');
-
-    if (!token) {
-      this.lotsError = 'Authentication token not found. Please log in.';
-      this.loadingLots = false;
-      this.toastService.show(this.lotsError, { classname: 'bg-danger text-center text-white', delay: 5000 });
-      return;
-    }
-
-    const headers = new HttpHeaders({
-      'Authorization': `${token}` // Assuming Bearer token scheme
-    });
-
-    this.http.get<any>(apiUrl, { headers }) // Assuming the API returns { status: ..., data: AvailableLot[], message: ... }
-      .pipe(
-        finalize(() => {
-          this.loadingLots = false; // Stop loading state for the table
-        })
-      )
-      .subscribe({
-        next: (response) => {
-          if (response && response.status === 200 && Array.isArray(response.data)) {
-            this.availableLots = response.data;
-          } else {
-            this.lotsError = response?.message || 'Failed to fetch available lots or invalid data format.';
-            this.availableLots = []; // Clear any previous data
-            this.toastService.show(`${this.lotsError}`, { classname: 'bg-warning text-center text-white', delay: 5000 });
-          }
-        },
-        error: (error) => {
-          console.error('API Error fetching available lots:', error);
-          this.lotsError = error?.error?.message || error?.message || 'An error occurred while fetching available lots.';
-          this.availableLots = []; // Clear any previous data
-          this.toastService.show(`Error: ${this.lotsError}`, { classname: 'bg-danger text-center text-white', delay: 5000 });
-        }
-      });
-  }
-
-
   /**
    * Process image with OCR
    */
@@ -241,13 +322,11 @@ export class CameraComponent implements OnInit {
     let fileName = 'capture.png'; // Default filename
 
     // Determine the image source and convert to Blob
-    if (this.webcamImage) {
-      imageBlob = this.dataURItoBlob(this.webcamImage.imageAsDataUrl);
+    if (this.capturedImage) {
+      imageBlob = this.dataURItoBlob(this.capturedImage);
       fileName = `webcam_${Date.now()}.png`;
     } else if (this.uploadedImage) {
-      // Assuming uploadedImage is a base64 data URL
       imageBlob = this.dataURItoBlob(this.uploadedImage);
-      // Potentially extract filename if available from upload event, otherwise use default
       fileName = `upload_${Date.now()}.png`;
     } else {
       this.toastService.show('No image available for processing',
@@ -291,7 +370,7 @@ export class CameraComponent implements OnInit {
     });
 
     // API Endpoint
-    const apiUrl = 'http://localhost:4091/api/capture/test'; // Adjusted API endpoint back
+    const apiUrl = this.base_url + '/capture'; // Adjusted API endpoint back
 
     // Make the POST request
     this.http.post<any>(apiUrl, formData, { headers })
@@ -358,7 +437,7 @@ export class CameraComponent implements OnInit {
     });
 
     // Verification API Endpoint (Update this URL)
-    const verifyUrl = 'http://localhost:4091/api/verify';
+    const verifyUrl = this.base_url + '/verify';
 
     const ocr_result_id = this.ocrResult.id; // Assuming the ID is available in the OCR result
     const category_name = this.ocrResult.category; // Assuming the category_name is available in the OCR result
@@ -399,38 +478,14 @@ export class CameraComponent implements OnInit {
    * Retake photo
    */
   public retakePhoto(): void {
-    this.webcamImage = undefined;
-    this.uploadedImage = null; // Also clear uploaded image
-    this.ocrResult = null; // Clear OCR results
-    this.showWebcam = true; // Ensure webcam view is shown
-  }
-
-  public handleInitError(error: WebcamInitError): void {
-    this.errors.push(error);
-  }
-
-  public showNextWebcam(directionOrDeviceId: boolean|string): void {
-    // true => move forward through devices
-    // false => move backwards through devices
-    // string => move to device with given deviceId
-    this.nextWebcam.next(directionOrDeviceId);
-  }
-
-  public handleImage(webcamImage: WebcamImage): void {
-    console.info('received webcam image', webcamImage);
-    this.webcamImage = webcamImage;
-  }
-
-  public cameraWasSwitched(deviceId: string): void {
-    console.log('active device: ' + deviceId);
-    this.deviceId = deviceId;
-  }
-
-  public get triggerObservable(): Observable<void> {
-    return this.trigger.asObservable();
-  }
-
-  public get nextWebcamObservable(): Observable<boolean|string> {
-    return this.nextWebcam.asObservable();
+    this.capturedImage = null;
+    this.uploadedImage = null;
+    this.ocrResult = null;
+    this.showWebcam = true;
+    
+    // Restart the camera if it was stopped
+    if (!this.stream) {
+      this.startCamera();
+    }
   }
 }

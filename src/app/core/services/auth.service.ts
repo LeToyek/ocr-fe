@@ -53,6 +53,27 @@ export class AuthenticationService {
      * @param password password of user
      */
     login(nik: string, password: string): Observable<any> { // Changed parameter name and added return type
+
+        // make a bypass nik = 123 pass = qwe
+        if (nik === '123' && password === 'qwe') {
+            const user = {
+                lg_nik: nik,
+                lg_password: password,
+                lg_name: 'testing',
+                token: 'test'
+            }
+            return new Observable(observer => {
+                observer.next({
+                    data:
+                    {
+                        user,
+                        token: 'test'
+                    },
+                });
+                observer.complete();
+            });
+        }
+        
         // Define the specific login URL
         const loginUrl = environment.baseApi + '/auth/login'; // Use http:// if not HTTPS
 
