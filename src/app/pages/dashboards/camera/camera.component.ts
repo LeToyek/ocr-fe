@@ -182,9 +182,9 @@ export class CameraComponent implements OnInit, OnDestroy {
     const constraints: any = {
       video: {
         facingMode: this.facingMode,
-        focusMode: 'manual',
-        width: { ideal: 720 },
-        height: { ideal: 960 }
+        focusMode: 'continuous',
+        width: { ideal: 1440 },
+        height: { ideal: 1920 }
       }
     };
 
